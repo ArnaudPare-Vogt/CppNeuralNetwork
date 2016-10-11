@@ -16,6 +16,7 @@ namespace NNet {
 		assert(nLayers >= 2);
 
 		neuronVectors.clear();
+		biasVectors.clear();
 
 		for (size_t i = 0; i < nLayers; i++)
 		{
@@ -26,6 +27,7 @@ namespace NNet {
 				neurons.push_back(0);
 			}
 			neuronVectors.push_back(neurons);
+			biasVectors.push_back(neurons);
 		}
 
 		inputNeurons = &(neuronVectors.at(0));
@@ -58,6 +60,58 @@ namespace NNet {
 	}
 
 
+
+
+
+
+	void NeuralNetwork::calculateValue(const size_t weightLayerNo, const size_t outputNeuronNo) {
+		WeightMatrix& weightMatrix = weightMatricies[weightLayerNo];
+		NeuronVector& inputVector = neuronVectors[weightLayerNo];
+		NeuronVector& outputVector = neuronVectors[weightLayerNo + 1];
+
+		size_t nInputs = inputVector.size();
+
+		float& outNeuron = outputVector[outputNeuronNo];
+
+		outNeuron = biasVectors[weightLayerNo + 1][outputNeuronNo];
+
+		size_t weightBeginPos = nInputs * outputNeuronNo;
+		for (size_t i = 0; i < nInputs; i++)
+		{
+			outNeuron += weightMatrix[weightBeginPos + i] * inputVector[i];
+		}
+
+		outNeuron = tanh(outNeuron);
+	}
+
+	void NeuralNetwork::calculateLayer(const size_t outputLayerNo) {
+		size_t nNeuronsOut = neuronVectors[outputLayerNo].size();
+		for (size_t i = 0; i < nNeuronsOut; i++)
+		{
+			calculateValue(outputLayerNo - 1, i);
+		}
+	}
+
+	void NeuralNetwork::calculateOutputs() {
+		for (size_t i = 1; i < neuronVectors.size(); i++)
+		{
+			calculateLayer(i);
+		}
+	}
+
+
+
+
+
+	void NeuralNetwork::setWeight(const size_t weightLayerNo, const size_t weightNo, const float weight) {
+		weightMatricies[weightLayerNo][weightNo] = weight;
+	}
+
+	void NeuralNetwork::setBias(const size_t layerNo, const size_t neuronNo, const float bias) {
+		biasVectors[layerNo][neuronNo] = bias;
+	}
+
+
 	NeuralNetwork::NeuronVector& NeuralNetwork::getInputs() {
 		return *inputNeurons;
 	}
@@ -65,7 +119,6 @@ namespace NNet {
 	NeuralNetwork::NeuronVector& NeuralNetwork::getOutputs() {
 		return *outputNeurons;
 	}
-
 
 	float NeuralNetwork::getNeuronValue(size_t layerNo, size_t neuronNo) const {
 		return neuronVectors[layerNo][neuronNo];
