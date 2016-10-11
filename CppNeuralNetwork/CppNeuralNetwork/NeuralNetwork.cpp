@@ -27,6 +27,9 @@ namespace NNet {
 			}
 			neuronVectors.push_back(neurons);
 		}
+
+		inputNeurons = &(neuronVectors.at(0));
+		outputNeurons = &(neuronVectors.at(nLayers - 1));
 	}
 
 	void NeuralNetwork::generateWeights(const NeuralNetworkParameters& params) {
@@ -55,7 +58,18 @@ namespace NNet {
 	}
 
 
+	NeuralNetwork::NeuronVector& NeuralNetwork::getInputs() {
+		return *inputNeurons;
+	}
 
+	NeuralNetwork::NeuronVector& NeuralNetwork::getOutputs() {
+		return *outputNeurons;
+	}
+
+
+	float NeuralNetwork::getNeuronValue(size_t layerNo, size_t neuronNo) const {
+		return neuronVectors[layerNo][neuronNo];
+	}
 
 	size_t NeuralNetwork::getLayerNumber() const {
 		return neuronVectors.size();

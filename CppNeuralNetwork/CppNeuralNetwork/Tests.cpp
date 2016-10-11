@@ -2,31 +2,28 @@
 #include <iostream>
 #include <string>
 
+#define CATCH_CONFIG_RUNNER
+#include "catch.hpp"
+
 #include "NeuralNetwork.h"
 
 
-void testCreationOnce(std::ostream& out, std::string testName, int numberOfTest, NNet::NeuralNetworkParameters params) {
+void testCreationOnce(NNet::NeuralNetworkParameters params) {
 	NNet::NeuralNetwork nn(params);
 
-	if (nn.getLayerNumber() != params.layers.size()) {
-		out << "Test failed at " << testName << " #" << numberOfTest << ".1" << std::endl;
-	}
+	REQUIRE(nn.getLayerNumber() == params.layers.size());
 	for (size_t i = 0; i < params.layers.size(); i++)
 	{
-		if (nn.getNeuronCount(i) != params.layers.at(i).nNeuron) {
-			out << "Test failed at " << testName << " #" << numberOfTest << ".2" << std::endl;
-		}
+		REQUIRE(nn.getNeuronCount(i) == params.layers.at(i).nNeuron);
 	}
 
 	for (size_t i = 0; i < params.layers.size() - 1; i++)
 	{
-		if (nn.getWeightCount(i) != params.layers.at(i).nNeuron * params.layers.at(i + 1).nNeuron) {
-			out << "Test failed at " << testName << " #" << numberOfTest << ".3" << std::endl;
-		}
+		REQUIRE(nn.getWeightCount(i) == params.layers.at(i).nNeuron * params.layers.at(i + 1).nNeuron);
 	}
 }
 
-void testCreation(std::ostream& out) {
+TEST_CASE("NeuralNets are created with correct values", "[NNet]") {
 	std::string testName = "Creation & structure";
 	using namespace NNet;
 	NeuralNetworkParameters params;
@@ -39,14 +36,14 @@ void testCreation(std::ostream& out) {
 	params.layers.push_back(desc);
 	desc.nNeuron = 1;
 	params.layers.push_back(desc);
-	testCreationOnce(out, testName, 0, params);
+	testCreationOnce(params);
 	params.layers.clear();
 
 	desc.nNeuron = 1;
 	params.layers.push_back(desc);
 	desc.nNeuron = 1;
 	params.layers.push_back(desc);
-	testCreationOnce(out, testName, 1, params);
+	testCreationOnce(params);
 	params.layers.clear();
 
 	desc.nNeuron = 100;
@@ -57,7 +54,7 @@ void testCreation(std::ostream& out) {
 	params.layers.push_back(desc);
 	desc.nNeuron = 10;
 	params.layers.push_back(desc);
-	testCreationOnce(out, testName, 2, params);
+	testCreationOnce(params);
 	params.layers.clear();
 
 	desc.nNeuron = 10;
@@ -72,22 +69,72 @@ void testCreation(std::ostream& out) {
 	params.layers.push_back(desc);
 	desc.nNeuron = 5;
 	params.layers.push_back(desc);
-	testCreationOnce(out, testName, 2, params);
+	testCreationOnce(params);
 	params.layers.clear();
 
 }
 
-void performAllTests(std::ostream& out) {
-	testCreation(out);
+void testIOVectorsOnce(NNet::NeuralNetworkParameters params) {
+	using namespace NNet;
+	NeuralNetwork nn(params);
 
+	NeuralNetwork::NeuronVector& in = nn.getInputs();
+	NeuralNetwork::NeuronVector& out = nn.getOutputs();
+	REQUIRE(in.size() == params.layers.front().nNeuron);
+	REQUIRE(out.size() == params.layers.back().nNeuron);
 
+	for (size_t i = 0; i < in.size(); i++)
+	{
+		in[i] = float(i);
+		REQUIRE(float(i) == nn.getNeuronValue(0, i));
+	}
 
+	for (size_t i = 0; i < out.size(); i++)
+	{
+		out[i] = float(i);
+		REQUIRE(float(i) == nn.getNeuronValue(params.layers.size() - 1, i));
+	}
 
 }
 
-int main() {
-	std::cout << "Tests are beginning for NeuralNetwork" << std::endl;
-	performAllTests(std::cout);
-	std::cout << "Tests have ended for NeuralNetwork" << std::endl;
+TEST_CASE("NeuralNets have correct input/output neurons", "[NNet]") {
+	std::string testName = "Creation & structure";
+	using namespace NNet;
+	NeuralNetworkParameters params;
+	LayerDescription desc;
+
+	desc.nNeuron = 2;
+	params.layers.push_back(desc);
+	desc.nNeuron = 3;
+	params.layers.push_back(desc);
+	desc.nNeuron = 1;
+	params.layers.push_back(desc);
+	testIOVectorsOnce(params);
+	params.layers.clear();
+
+	desc.nNeuron = 1;
+	params.layers.push_back(desc);
+	desc.nNeuron = 1;
+	params.layers.push_back(desc);
+	testIOVectorsOnce(params);
+	params.layers.clear();
+
+	desc.nNeuron = 5;
+	params.layers.push_back(desc);
+	desc.nNeuron = 6;
+	params.layers.push_back(desc);
+	desc.nNeuron = 2;
+	params.layers.push_back(desc);
+	testIOVectorsOnce(params);
+	params.layers.clear();
+}
+
+
+int main(int argc, char** argv) {
+	int result = Catch::Session().run(argc, argv);
 	std::getchar();
+
+	return result;
 }
+
+
