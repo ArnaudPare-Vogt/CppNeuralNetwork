@@ -1,5 +1,8 @@
 #include "NeuralNetwork.h"
 
+#include <cassert>
+#include <cmath>
+
 namespace NNet {
 
 	NeuralNetwork::NeuralNetwork(const NeuralNetworkParameters& params)
@@ -8,7 +11,11 @@ namespace NNet {
 		generateWeights(params);
 	}
 
-
+	NeuralNetwork::~NeuralNetwork() {
+		if (expectedOutputVector != 0) {
+			delete(expectedOutputVector);
+		}
+	}
 
 
 	void NeuralNetwork::generateNeurons(const NeuralNetworkParameters& params) {
@@ -17,21 +24,26 @@ namespace NNet {
 
 		neuronVectors.clear();
 		biasVectors.clear();
+		simpleSummationValues.clear();
+		errorVectors.clear();
+		if (expectedOutputVector != 0) {
+			delete(expectedOutputVector);
+		}
 
 		for (size_t i = 0; i < nLayers; i++)
 		{
 			unsigned nNeuron = params.layers.at(i).nNeuron;
-			std::vector<float> neurons;
-			for (size_t j = 0; j < nNeuron; j++)
-			{
-				neurons.push_back(0);
-			}
+			Vector neurons(nNeuron);
 			neuronVectors.push_back(neurons);
 			biasVectors.push_back(neurons);
+			simpleSummationValues.push_back(neurons);
+			errorVectors.push_back(neurons);
 		}
 
 		inputNeurons = &(neuronVectors.at(0));
 		outputNeurons = &(neuronVectors.at(nLayers - 1));
+		expectedOutputVector = new Vector(outputNeurons->size());
+
 	}
 
 	void NeuralNetwork::generateWeights(const NeuralNetworkParameters& params) {
@@ -48,13 +60,8 @@ namespace NNet {
 			unsigned nInputNeurons = params.layers.at(inputLayerNo).nNeuron;
 			unsigned nOutputNeurons = params.layers.at(outputLayerNo).nNeuron;
 
-			unsigned nWeight = nInputNeurons * nOutputNeurons;
-
-			std::vector<float> weights;
-			for (size_t j = 0; j < nWeight; j++)
-			{
-				weights.push_back(1);
-			}
+			Matrix weights(nOutputNeurons, nInputNeurons);
+			weights.setZero();
 			weightMatricies.push_back(weights);
 		}
 	}
@@ -65,9 +72,9 @@ namespace NNet {
 
 
 	void NeuralNetwork::calculateValue(const size_t weightLayerNo, const size_t outputNeuronNo) {
-		WeightMatrix& weightMatrix = weightMatricies[weightLayerNo];
-		NeuronVector& inputVector = neuronVectors[weightLayerNo];
-		NeuronVector& outputVector = neuronVectors[weightLayerNo + 1];
+		Matrix& weightMatrix = weightMatricies[weightLayerNo];
+		Vector& inputVector = neuronVectors[weightLayerNo];
+		Vector& outputVector = neuronVectors[weightLayerNo + 1];
 
 		size_t nInputs = inputVector.size();
 
@@ -78,18 +85,19 @@ namespace NNet {
 		size_t weightBeginPos = nInputs * outputNeuronNo;
 		for (size_t i = 0; i < nInputs; i++)
 		{
-			outNeuron += weightMatrix[weightBeginPos + i] * inputVector[i];
+			outNeuron += weightMatrix(outputNeuronNo, i) * inputVector[i];
 		}
 
 		outNeuron = tanh(outNeuron);
 	}
 
 	void NeuralNetwork::calculateLayer(const size_t outputLayerNo) {
-		size_t nNeuronsOut = neuronVectors[outputLayerNo].size();
-		for (size_t i = 0; i < nNeuronsOut; i++)
-		{
-			calculateValue(outputLayerNo - 1, i);
-		}
+		Vector& out = neuronVectors[outputLayerNo];
+		Vector& in = neuronVectors[outputLayerNo - 1];
+		Vector& bias = biasVectors[outputLayerNo];
+		Matrix& weights = weightMatricies[outputLayerNo - 1];
+
+		out = (weights*in + bias).unaryExpr(activation);
 	}
 
 	void NeuralNetwork::calculateOutputs() {
@@ -99,12 +107,56 @@ namespace NNet {
 		}
 	}
 
+	void NeuralNetwork::calculateBackPropLayer(const size_t outputLayerNo) {
+		Vector& out = neuronVectors[outputLayerNo];
+		Vector& in = neuronVectors[outputLayerNo - 1];
+		Vector& bias = biasVectors[outputLayerNo];
+		Matrix& weights = weightMatricies[outputLayerNo - 1];
+
+		Vector& zValue = simpleSummationValues[outputLayerNo];
+		zValue = weights*in + bias;
+		out = zValue.unaryExpr(activation);
+
+	}
+
+	void NeuralNetwork::calculateBackPropOutputs() {
+		for (size_t outputLayerNo = 1; outputLayerNo < neuronVectors.size(); outputLayerNo++)
+		{
+			calculateBackPropLayer(outputLayerNo);
+		}
+	}
+
+	void NeuralNetwork::costDerivative(Vector& error) {
+		for (size_t i = 0; i < outputNeurons->size(); i++)
+		{
+			error[i] = (*outputNeurons)[i] - (*expectedOutputVector)[i];
+		}
+	}
+
+	void NeuralNetwork::backPropagateError() {
+		Vector& last = errorVectors.back();
+		last = ((*outputNeurons) - (*expectedOutputVector)).cwiseProduct(simpleSummationValues.back().unaryExpr(activationDerivative));
+		for (size_t i = errorVectors.size() - 2; i > 0; i--)
+		{
+			Vector& error = errorVectors[i];
+			Matrix& weights = weightMatricies[i];
+			Vector& prevError = errorVectors[i + 1];
+			Vector& simpleSummationVector = simpleSummationValues[i];
+
+			error = (weights.transpose() * prevError).cwiseProduct(simpleSummationVector.unaryExpr(activationDerivative));
+		}
+	}
+
+	void NeuralNetwork::backPropagation(float changeRate) {
+		calculateBackPropOutputs();
+		backPropagateError();
+		
+	}
 
 
 
-
-	void NeuralNetwork::setWeight(const size_t weightLayerNo, const size_t weightNo, const float weight) {
-		weightMatricies[weightLayerNo][weightNo] = weight;
+	void NeuralNetwork::setWeight(const size_t weightLayerNo, const size_t weightRow, const size_t weightCol, const float weight) {
+		weightMatricies[weightLayerNo](weightRow, weightCol) = weight;
 	}
 
 	void NeuralNetwork::setBias(const size_t layerNo, const size_t neuronNo, const float bias) {
@@ -112,11 +164,11 @@ namespace NNet {
 	}
 
 
-	NeuralNetwork::NeuronVector& NeuralNetwork::getInputs() {
+	NeuralNetwork::Vector& NeuralNetwork::getInputs() {
 		return *inputNeurons;
 	}
 
-	NeuralNetwork::NeuronVector& NeuralNetwork::getOutputs() {
+	NeuralNetwork::Vector& NeuralNetwork::getOutputs() {
 		return *outputNeurons;
 	}
 

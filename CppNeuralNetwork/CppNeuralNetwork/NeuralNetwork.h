@@ -1,8 +1,8 @@
 #pragma once
 
-#include <cassert>
-#include <cmath>
 #include <vector>
+
+#include <Eigen/Dense>
 
 namespace NNet {
 
@@ -17,39 +17,55 @@ namespace NNet {
 	class NeuralNetwork
 	{
 	public:
-		typedef std::vector<float> BiasVector;
-		typedef std::vector<float> NeuronVector;
-		typedef std::vector<float> WeightMatrix;
-		typedef std::vector<BiasVector> BiasVectors;
-		typedef std::vector<NeuronVector> NeuronVectors;
-		typedef std::vector<WeightMatrix> WeightMaticies;
+		typedef Eigen::MatrixXf Matrix;
+		typedef Eigen::VectorXf Vector;
+		typedef std::vector<Vector> BiasVectors;
+		typedef std::vector<Vector> NeuronVectors;
+		typedef std::vector<Matrix> WeightMaticies;
 	private:
 
 		WeightMaticies weightMatricies;
 		NeuronVectors neuronVectors;
 		BiasVectors biasVectors;
 
-		NeuronVector* inputNeurons;
-		NeuronVector* outputNeurons;
+		Vector* inputNeurons;
+		Vector* outputNeurons;
+
+		Vector* expectedOutputVector = 0;
+
+		float(*activation)(float) = &tanh;
+
+		NeuronVectors simpleSummationValues;
+		NeuronVectors errorVectors;
+
+		static float tanhDerivative(float x) { return 1 - pow(tanh(x), 2); };
+		float(*activationDerivative)(float) = &tanhDerivative;
 
 	public:
 		NeuralNetwork(const NeuralNetworkParameters& params);
+		~NeuralNetwork();
 	private:
 		void generateNeurons(const NeuralNetworkParameters& params);
 		void generateWeights(const NeuralNetworkParameters& params);
 
 		void calculateValue(const size_t weightLayerNo, const size_t outputNeuronNo);
 		void calculateLayer(const size_t outputLayerNo);
+
+		void calculateBackPropLayer(const size_t outputLayerNo);
+		void calculateBackPropOutputs();
+
+		void costDerivative(Vector& error);
+		void backPropagateError();
 	public:
 		void calculateOutputs();
+		void backPropagation(float changeRate);
 
-
-		void setWeight(const size_t weightLayerNo, const size_t weightNo, const float weight);
+		void setWeight(const size_t weightLayerNo, const size_t weightRow, const size_t weightCol, const float weight);
 		void setBias(const size_t layerNo, const size_t neuronNo, const float bias);
 
 
-		NeuronVector& getInputs();
-		NeuronVector& getOutputs();
+		Vector& getInputs();
+		Vector& getOutputs();
 
 		float getNeuronValue(size_t layerNo, size_t neuronNo) const;
 

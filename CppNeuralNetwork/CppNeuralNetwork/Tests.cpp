@@ -1,12 +1,12 @@
 #include <cassert>
 #include <iostream>
 #include <string>
+#include <cmath>
 
 #define CATCH_CONFIG_RUNNER
-#include "catch.hpp"
+#include <Catch/catch.hpp>
 
 #include "NeuralNetwork.h"
-
 
 void testCreationOnce(NNet::NeuralNetworkParameters params) {
 	NNet::NeuralNetwork nn(params);
@@ -78,8 +78,8 @@ void testIOVectorsOnce(NNet::NeuralNetworkParameters params) {
 	using namespace NNet;
 	NeuralNetwork nn(params);
 
-	NeuralNetwork::NeuronVector& in = nn.getInputs();
-	NeuralNetwork::NeuronVector& out = nn.getOutputs();
+	NeuralNetwork::Vector& in = nn.getInputs();
+	NeuralNetwork::Vector& out = nn.getOutputs();
 	REQUIRE(in.size() == params.layers.front().nNeuron);
 	REQUIRE(out.size() == params.layers.back().nNeuron);
 
@@ -131,7 +131,7 @@ TEST_CASE("NeuralNets have correct input/output neurons", "[NNet]") {
 
 TEST_CASE("Neural network weight multiplication", "[NNet]") {
 	using namespace NNet;
-	{
+	SECTION("Test 1"){
 		NeuralNetworkParameters params;
 		LayerDescription desc;
 		desc.nNeuron = 1;
@@ -140,12 +140,12 @@ TEST_CASE("Neural network weight multiplication", "[NNet]") {
 		params.layers.push_back(desc);
 		NeuralNetwork nn(params);
 		nn.getInputs()[0] = 1;
-		nn.setWeight(0, 0, 0.2f);
+		nn.setWeight(0, 0, 0, 0.2f);
 		nn.calculateOutputs();
 		REQUIRE(nn.getOutputs()[0] - tanh(1 * 0.2) < 0.0001f);
 
 		nn.getInputs()[0] = 0.3f;
-		nn.setWeight(0, 0, 4);
+		nn.setWeight(0, 0, 0, 4);
 		REQUIRE(nn.getOutputs()[0] - tanh(0.3 * 4) < 0.0001f);
 
 		nn.setBias(1, 0, -1);
@@ -153,7 +153,7 @@ TEST_CASE("Neural network weight multiplication", "[NNet]") {
 		REQUIRE(nn.getOutputs()[0] - tanh((0.3 * 4) - 1) < 0.0001f);
 	}
 
-	{
+	SECTION("Test 2") {
 		NeuralNetworkParameters params;
 		LayerDescription desc;
 		desc.nNeuron = 2;
@@ -164,16 +164,16 @@ TEST_CASE("Neural network weight multiplication", "[NNet]") {
 		params.layers.push_back(desc);
 		NeuralNetwork nn(params);
 
-		nn.setWeight(0, 0, 1.3f);
-		nn.setWeight(0, 1, 0.5f);
-		nn.setWeight(0, 2, 1.4f);
-		nn.setWeight(0, 3, 3.1f);
-		nn.setWeight(0, 4, -0.7f);
-		nn.setWeight(0, 5, 0.1f);
+		nn.setWeight(0, 0, 0, 1.3f);
+		nn.setWeight(0, 0, 1, 0.5f);
+		nn.setWeight(0, 1, 0, 1.4f);
+		nn.setWeight(0, 1, 1, 3.1f);
+		nn.setWeight(0, 2, 0, -0.7f);
+		nn.setWeight(0, 2, 1, 0.1f);
 
-		nn.setWeight(1, 0, 0.1f);
-		nn.setWeight(1, 1, 0.3f);
-		nn.setWeight(1, 2, 0.4f);
+		nn.setWeight(1, 0, 0, 0.1f);
+		nn.setWeight(1, 0, 1, 0.3f);
+		nn.setWeight(1, 0, 2, 0.4f);
 
 		nn.setBias(1, 0, 0.01f);
 		nn.setBias(1, 1, -0.2f);
@@ -181,10 +181,10 @@ TEST_CASE("Neural network weight multiplication", "[NNet]") {
 
 		nn.setBias(2, 0, 0.1f);
 
-		NeuralNetwork::NeuronVector& in = nn.getInputs();
-		in[0] = 0.2;
-		in[1] = 0.7;
-		NeuralNetwork::NeuronVector& out = nn.getOutputs();
+		NeuralNetwork::Vector& in = nn.getInputs();
+		in[0] = 0.2f;
+		in[1] = 0.7f;
+		NeuralNetwork::Vector& out = nn.getOutputs();
 
 		nn.calculateOutputs();
 		REQUIRE(out[0] - 0.4921 < 0.001);

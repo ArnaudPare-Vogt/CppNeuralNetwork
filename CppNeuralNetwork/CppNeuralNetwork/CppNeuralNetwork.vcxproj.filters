@@ -21,9 +21,6 @@
     <ClInclude Include="NeuralNetwork.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="catch.hpp">
-      <Filter>Test</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="NeuralNetwork.cpp">
